@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const userRoutes = require('./Routes/userRoute.js')
+const quizRoute = require('./Routes/quizRoute.js')
 const verifyToken = require('./Middlewares/authMidlleware');
 
 const app = express();
@@ -21,6 +22,7 @@ app.use(cors());
 
 // Define routes here
 app.use("/account", userRoutes);
+app.use("/quiz", quizRoute);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

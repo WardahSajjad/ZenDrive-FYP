@@ -1,3 +1,4 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('../Models/user.js');  // Assuming your user model is named 'User'
 const argon2i = require('argon2-ffi').argon2i;
@@ -8,6 +9,9 @@ const jwt = require('jsonwebtoken');
 const config = require('../config.js');
 const secretKey = config.secretKey;
 const passwordRegex = new RegExp("(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.{8,24})");
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY); // Use your SendGrid API Key here
+
 
 
 
@@ -59,7 +63,6 @@ const login = async (req, res) => {
 // app.post('/account/create', 
 const createAccount = async (req, res) => {
     try {
-        var response = {};
         const { rEmail, rUsername, rPassword } = req.body;
 
         // Validate email and username
@@ -74,24 +77,45 @@ const createAccount = async (req, res) => {
         }
 
         // Check if email or username already exists
-        let existingUser = await User.findOne({ $or: [{ email: rEmail }, { username: rUsername }] });
+        const existingUser = await User.findOne({ $or: [{ email: rEmail }, { username: rUsername }] });
         if (existingUser) {
             return res.status(409).send({ code: 2, msg: "Email or username already taken" });
         }
 
+        // Generate email verification token
+        const emailVerificationToken = crypto.randomBytes(20).toString('hex');
+
+        // Hash password and create new user
         const hashedPassword = await bcrypt.hash(rPassword, 10);
-        // Create new user account
-        var newUser = new User({
+        const newUser = new User({
             email: rEmail,
             username: rUsername,
-            password: hashedPassword, // The password will be hashed in the pre-save hook
+            password: hashedPassword,
+            emailVerificationToken: emailVerificationToken
         });
         await newUser.save();
 
-        response.code = 0;
-        response.msg = "Account created";
-        response.data = { username: newUser.username, email: newUser.email };
-        res.send(response);
+        // Send verification email
+         // Prepare email data
+    const msg = {
+        to: newUser.email, // Change to your recipient
+        from: 'i211240@nu.edu.pk', // Change to your verified sender
+        subject: 'Email Verification',
+        text: `Please verify your email by using this token: ${newUser.emailVerificationToken}`,
+        html: `<strong>Please verify your email by using this token: ${newUser.emailVerificationToken}</strong>`,
+    };
+
+   // Send the email
+try {
+    await sgMail.send(msg);
+    console.log('Email sent');
+    // Send success response
+    res.send({ code: 0, msg: 'Verification email sent', data: { username: newUser.username, email: newUser.email } });
+} catch (error) {
+    console.error('Email Send Error:', error);
+    // Send error response
+    res.status(500).send({ msg: 'Failed to send email' });
+}
     } catch (error) {
         console.error('Account Creation Error:', error);
         res.status(500).send({ msg: "Internal server error" });
@@ -99,7 +123,28 @@ const createAccount = async (req, res) => {
 };
 
 
+//email verification
+// app.get('/verify-email/:token', 
+const emailVerification = async (req, res) => {
+    const { token } = req.params;
+    const user = await User.findOne({ emailVerificationToken: token });
+
+    if (!user) {
+        return res.status(400).send({ msg: 'Invalid token' });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    await user.save();
+
+    res.send({ msg: 'Email verified successfully' });
+};
+
+
+
+
 module.exports ={
     login,
-    createAccount
+    createAccount,
+    emailVerification
 }

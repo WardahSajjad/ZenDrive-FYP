@@ -23,7 +23,11 @@ const userSchema = new mongoose.Schema({
         required: [true, 'Password is required'],
         minlength: [6, 'Password must be at least 8 characters long'],
         
-    }
+    },
+    // Add these fields to your user schema
+emailVerified: { type: Boolean, default: false },
+emailVerificationToken: { type: String },
+
     // Confirm password should be handled at the application level but not stored in the database
 });
 
