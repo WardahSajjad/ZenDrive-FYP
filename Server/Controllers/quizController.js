@@ -1,4 +1,8 @@
+const jwt = require('jsonwebtoken');
+const User = require('../Models/user.js');
 const QuizQuestion = require('../Models/quizQuestions.js');
+const UserAnswer = require('../Models/userAnswer.js'); // Import the UserAnswer model
+
 
 const getQuestions = async (req, res) => {
     try {
@@ -30,6 +34,9 @@ const getQuestions = async (req, res) => {
         res.status(500).send({ message: 'Error retrieving questions', error: error });
     }
 };
+
+
+
 
 module.exports = {
     getQuestions
